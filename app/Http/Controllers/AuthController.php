@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers;
-
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -24,13 +24,17 @@ class AuthController extends Controller
             'email' => $request->email,
             'password' => Hash::make($request->password),
         ]);
-
+        event(new Registered($user));
         $token = $user->createToken('api-token')->plainTextToken;
 
         return response()->json([
             'user' => $user,
             'token' => $token,
         ]);
+    }
+
+    public function test(){
+        return response()->json(['test' => 'tested']);
     }
 
     public function login(Request $request)
