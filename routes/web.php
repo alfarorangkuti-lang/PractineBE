@@ -7,5 +7,5 @@ Route::get('/', function () {
 });
 
 Route::get('/login', function () {
-    return redirect(env('FRONTEND_URL').'/auth/payment');
+    return redirect(env('FRONTEND_URL').'/auth/login');
 })->name('login');
