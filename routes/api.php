@@ -6,6 +6,7 @@ use App\Models\User;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Foundation\Auth\EmailVerificationRequest;
 use Illuminate\Http\Request;
+use App\Http\Controllers\MidtransController;
 
 // basic auth
 Route::post('/register', [AuthController::class, 'register']);
@@ -15,10 +16,13 @@ Route::post('/logout', [AuthController::class, 'logout']);
 });
 
 
+
+
+
+
+// Middleware yang cuma perlu auth:sanctum
 // user
-Route::middleware(['auth:sanctum'])->get('/user', function (Request $request) {
-    return $request->user();
-});
+Route::middleware(['auth:sanctum'])->get('/user', [AuthController::class, 'user']);
 
 // email verif
 Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) {
@@ -47,4 +51,9 @@ Route::post('/email/verification-notification', function (Request $request) {
     return response()->json([
         'message' => 'Verification link sent!'
     ]);
-})->middleware(['auth:sanctum']);
+})->middleware(['auth:sanctum', 'throttle:1,1']);
+
+
+// first subs
+Route::post('/firstSubs', [MidtransController::class, 'firstSubscription'])->middleware(['auth:sanctum']);
+Route::post('/midtrans/callback', [MidtransController::class, 'callbackMidtrans']);

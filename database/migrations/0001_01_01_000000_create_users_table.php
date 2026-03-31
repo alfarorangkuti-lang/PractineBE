@@ -15,7 +15,6 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('business_name');
-            $table->boolean('is_paid')->default(false);
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
@@ -28,6 +27,19 @@ return new class extends Migration
             $table->string('token');
             $table->timestamp('created_at')->nullable();
         });
+
+        Schema::create('payment_history', function (Blueprint $table){
+            $table->id();
+            $table->foreignId('user_id')->constrained();
+            $table->string('month_amount');
+            $table->integer('pay_amount');
+            $table->string('status');
+            $table->string('snap_token');
+            $table->string('order_id');
+            $table->dateTime('expired_at')->unique()->nullable();
+            $table->timestamps();
+
+        }); 
 
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();

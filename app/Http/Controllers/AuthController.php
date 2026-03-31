@@ -63,7 +63,9 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
-        return $request->user();
+        $user = $request->user();
+        $user->load('payment_history');
+        return $user;
     }
 
     public function logout(Request $request)
