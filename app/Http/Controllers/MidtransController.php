@@ -2,7 +2,9 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Carbon;
 use App\Models\PaymentHistory;
+use App\Models\Tenants;
 use Midtrans\Snap;
 use Illuminate\Http\Request;
 \Midtrans\Config::$serverKey = env('MIDTRANS_SERVER_KEY');
@@ -12,17 +14,66 @@ use Illuminate\Http\Request;
 
 class MidtransController extends Controller
 {
-    public function firstSubscription(Request $request)
+
+    public function subscribe(Request $request)
     {
         $user = $request->user();
+        $pendingTransaction = PaymentHistory::where('tenant_id', $user->tenant_id)->where('status', 'pending')->latest()->first();
+        $orderId = 'ORDER-'. $user->tenant_id . time();
+        $monthAmount = $request->monthAmount;
+        $prices = [
+            1 => 129000,
+            3 => 339000,
+            6 => 600000,
+            12 => 1080000,
+        ];
+        $payAmount = $prices[$monthAmount] ?? abort(400);
 
-        $newAccount = PaymentHistory::where('user_id', $user->id)->where('status', 'paid')->exists();
-        if ($newAccount) {
+
+        if ($pendingTransaction) {
+            return response()->json(['snap_token' => $pendingTransaction->snap_token]);
+        }
+        
+
+        $params = [
+            'transaction_details' => [
+                'order_id' => $orderId,
+                'gross_amount' => $payAmount,
+            ],
+            'customer_details' => [
+                'first_name' => $user->name,
+                'email' => $user->email,
+            ],
+        ];
+
+        $snapToken = Snap::getSnapToken($params);
+
+        PaymentHistory::create([
+            'tenant_id' => $user->tenant_id,
+            'month_amount' => $monthAmount,
+            'pay_amount' => $payAmount,
+            'status' => 'pending',
+            'snap_token' => $snapToken,
+            'order_id' => $orderId,
+        ]);
+
+
+        return response()->json([
+            'snap_token' => $snapToken
+        ]);
+
+    }
+
+    public function firstSubscription(Request $request)
+    {
+        $user = $request->user()->load('tenant');
+
+        if ($user->tenant->expired_at) {
             return response()->json(['message' => 'bukan akun baru, transaksi tidak dapat dilakukan']);
         }
 
 
-        $pendingTransaction = PaymentHistory::where('user_id', $user->id)->where('status', 'pending')->latest()->first();
+        $pendingTransaction = PaymentHistory::where('tenant_id', $user->tenant_id)->where('status', 'pending')->latest()->first();
 
         if ($pendingTransaction) {
             return response()->json(['snap_token' => $pendingTransaction->snap_token]);
@@ -30,7 +81,7 @@ class MidtransController extends Controller
 
 
 
-        $orderId = 'ORDER-'. $user->id . time();
+        $orderId = 'ORDER-'. $user->tenant_id . time();
         $payAmount = 9900;
 
         $params = [
@@ -46,7 +97,7 @@ class MidtransController extends Controller
         $snapToken = Snap::getSnapToken($params);
 
         PaymentHistory::create([
-            'user_id' => $user->id,
+            'tenant_id' => $user->tenant_id,
             'month_amount' => 1,
             'pay_amount' => $payAmount,
             'status' => 'pending',
@@ -101,7 +152,35 @@ class MidtransController extends Controller
         }
 
         $payment->save();
+        
+        $tenant = Tenants::where('id', $user->tenant_id)->first();
+        $baseDate = $tenant->expired_at && $tenant->expired_at > now() ? $tenant->expired_at : now();
+        if ($payment->status === 'paid') {
+            $tenant->expired_at = $baseDate->addMonths($payment->month_amount);
+        }
 
         return response()->json(['message' => 'OK']);
+    }
+
+    public function testPayment(Request $request)
+    {
+        $user = $request->user()->load('tenant');
+
+        $payment = PaymentHistory::where('tenant_id', $user->tenant->id)->first();
+        if (!$payment) {
+            return response()->json(['message' => 'Order not found'], 404);
+        }
+
+        $payment->status = 'paid';
+        $payment->save();
+        
+        $tenant = Tenants::where('id', $user->tenant->id)->first();
+        $baseDate = $tenant->expired_at && $tenant->expired_at > now() ? $tenant->expired_at : now();
+        if ($payment->status === 'paid') {
+            $tenant->expired_at = $baseDate->addMonths(1);
+            $tenant->save();
+        }
+
+        return response()->json(['message' => 'OK'],200);
     }
 }

@@ -6,31 +6,44 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
 use App\Models\User;
+use App\Models\Tenants;
 
 class AuthController extends Controller
 {
     public function register(Request $request)
     {
-        $request->validate([
+        try {
+            $request->validate([
             'name' => 'required|string',
-            'business_name' => 'required|string',
+            'business_name' => 'required|string|unique:tenants',
             'email' => 'required|email|unique:users',
             'password' => 'required|confirmed',
-        ]);
+            ]);
 
-        $user = User::create([
-            'name' => $request->name,
-            'business_name' => $request->business_name,
-            'email' => $request->email,
-            'password' => Hash::make($request->password),
-        ]);
-        event(new Registered($user));
-        $token = $user->createToken('api-token')->plainTextToken;
+            $tenant = Tenants::create([
+                'business_name' => $request->business_name,
+            ]);
 
-        return response()->json([
-            'user' => $user,
-            'token' => $token,
-        ]);
+            $user = User::create([
+                'tenant_id' => $tenant->id,
+                'name' => $request->name,
+                'email' => $request->email,
+                'password' => Hash::make($request->password),
+                'role' => 'owner',
+            ]);
+
+
+            event(new Registered($user));
+            $token = $user->createToken('api-token')->plainTextToken;
+
+            return response()->json([
+                'user' => $user,
+                'token' => $token,
+            ]);
+        } catch (\Throwable $th) {
+            throw $th;
+        }
+        
     }
 
     public function test(){
@@ -63,8 +76,7 @@ class AuthController extends Controller
 
     public function user(Request $request)
     {
-        $user = $request->user();
-        $user->load('payment_history');
+        $user = $request->user()->load('tenant');
         return $user;
     }
 

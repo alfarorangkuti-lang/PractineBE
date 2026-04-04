@@ -10,10 +10,10 @@ use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
-use App\Models\Payment_History;
-use Illuminate\Database\Eloquent\Relations\HasMany;
+use App\Models\Tenants;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
-#[Fillable(['name', 'email', 'password', 'business_name'])]
+#[Fillable(['name', 'email', 'password', 'tenant_id', 'role'])]
 #[Hidden(['password', 'remember_token'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
@@ -33,8 +33,8 @@ class User extends Authenticatable implements MustVerifyEmail
         ];
     }
 
-    public function payment_history(): HasMany
+    public function tenant(): BelongsTo
     {
-        return $this->hasMany(PaymentHistory::class);
+        return $this->belongsTo(Tenants::class);
     }
 }

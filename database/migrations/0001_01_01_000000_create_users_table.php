@@ -11,13 +11,22 @@ return new class extends Migration
      */
     public function up(): void
     {
+
+        Schema::create('tenants', function (Blueprint $table){
+            $table->id();
+            $table->string('business_name');
+            $table->dateTime('expired_at')->nullable();
+            $table->timestamps();
+        });
+
         Schema::create('users', function (Blueprint $table) {
             $table->id();
+            $table->foreignId('tenant_id')->constrained();
             $table->string('name');
-            $table->string('business_name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
+            $table->string('role');
             $table->rememberToken();
             $table->timestamps();
         });
@@ -30,13 +39,12 @@ return new class extends Migration
 
         Schema::create('payment_history', function (Blueprint $table){
             $table->id();
-            $table->foreignId('user_id')->constrained();
+            $table->foreignId('tenant_id')->constrained();
             $table->string('month_amount');
             $table->integer('pay_amount');
             $table->string('status');
             $table->string('snap_token');
             $table->string('order_id');
-            $table->dateTime('expired_at')->unique()->nullable();
             $table->timestamps();
 
         }); 

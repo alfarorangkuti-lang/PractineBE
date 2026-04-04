@@ -3,16 +3,16 @@
 namespace App\Models;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Model;
-use App\Models\User;
+use App\Models\Tenants;
 
 class PaymentHistory extends Model
 {
     protected $table = 'payment_history';
-    protected $fillable = ['user_id', 'month_amount', 'pay_amount', 'status', 'snap_token', 'order_id', 'expired_at'];
+    protected $fillable = ['tenant_id', 'month_amount', 'pay_amount', 'status', 'snap_token', 'order_id'];
     
-    public function users(): BelongsTo
+    public function Tenants(): BelongsTo
     {
-        return $this->belongsTo(User::class);
+        return $this->belongsTo(Tenants::class);
     }
 
 }

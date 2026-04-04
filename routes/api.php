@@ -11,8 +11,9 @@ use App\Http\Controllers\MidtransController;
 // basic auth
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login', [AuthController::class, 'login']);
+
 Route::middleware('auth:sanctum')->group(function () {
-Route::post('/logout', [AuthController::class, 'logout']);
+    Route::post('/logout', [AuthController::class, 'logout']);
 });
 
 
@@ -27,6 +28,8 @@ Route::middleware(['auth:sanctum'])->get('/user', [AuthController::class, 'user'
 // email verif
 Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) {
     $user = User::findOrFail($id);
+    $frontend = env('FRONTEND_URL');
+    $pageVerif = '/auth/verification';
 
     // 🔐 validasi hash email
     if (! hash_equals((string) $hash, sha1($user->getEmailForVerification()))) {
@@ -35,7 +38,8 @@ Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) 
 
     // ✅ kalau sudah verified
     if ($user->hasVerifiedEmail()) {
-        return redirect('http://localhost:3000/auth/login');
+        $page = '/auth/login';
+        return redirect($frontend . $page);
     }
 
     // ✅ set verified
@@ -43,7 +47,7 @@ Route::get('/email/verify/{id}/{hash}', function (Request $request, $id, $hash) 
 
     event(new Verified($user));
 
-    return redirect('http://localhost:3000/auth/verification');
+    return redirect($frontend . $pageVerif);
 })->middleware(['signed'])->name('verification.verify');
 
 Route::post('/email/verification-notification', function (Request $request) {
@@ -54,6 +58,11 @@ Route::post('/email/verification-notification', function (Request $request) {
 })->middleware(['auth:sanctum', 'throttle:1,1']);
 
 
-// first subs
+// midtrans
 Route::post('/firstSubs', [MidtransController::class, 'firstSubscription'])->middleware(['auth:sanctum']);
+Route::post('/subscribe', [MidtransController::class, 'subscribe'])->middleware(['auth:sanctum', 'subsAndRoleChecks:owner']);
 Route::post('/midtrans/callback', [MidtransController::class, 'callbackMidtrans']);
+Route::post('/testPayment', [MidtransController::class, 'testPayment'])->middleware(['auth:sanctum']);
+Route::get('/testMiddleware', function(){
+    return response()->json(['message' => 'role benar dan sudah subscribe']);
+})->middleware(['auth:sanctum','subsAndRoleChecks:owner']);
