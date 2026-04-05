@@ -30,8 +30,13 @@ class MidtransController extends Controller
         $payAmount = $prices[$monthAmount] ?? abort(400);
 
 
-        if ($pendingTransaction) {
+        if ($pendingTransaction && $pendingTransaction->month_amount == $monthAmount) {
             return response()->json(['snap_token' => $pendingTransaction->snap_token]);
+        }
+
+        if ($pendingTransaction) {
+            $pendingTransaction->status = 'canceled';
+            $pendingTransaction->save();
         }
         
 
@@ -74,8 +79,11 @@ class MidtransController extends Controller
 
 
         $pendingTransaction = PaymentHistory::where('tenant_id', $user->tenant_id)->where('status', 'pending')->latest()->first();
-
-        if ($pendingTransaction) {
+        if ($pendingTransaction->status === 'pending' && $pendingTransaction->created_at < now()->subMinutes(15)) {
+            $pendingTransaction->status = 'canceled';
+            $pendingTransaction->save();
+        }
+        if ($pendingTransaction->status === 'pending') {
             return response()->json(['snap_token' => $pendingTransaction->snap_token]);
         }
 
@@ -114,50 +122,66 @@ class MidtransController extends Controller
     public function callbackMidtrans(Request $request)
     {
         $serverKey = env('MIDTRANS_SERVER_KEY');
-        $signature = hash('sha512', $request->order_id . $request->status_code . $request->gross_amount . $serverKey);
+
+        $signature = hash('sha512',
+            $request->order_id .
+            $request->status_code .
+            $request->gross_amount .
+            $serverKey
+        );
+
         if ($signature !== $request->signature_key) {
             return response()->json(['message' => 'Invalid signature'], 403);
         }
 
-        $orderId = $request->order_id;
-        $transactionStatus = $request->transaction_status;
-        $fraudStatus = $request->fraud_status;
-
-        $payment = PaymentHistory::where('order_id', $orderId)->first();
+        $payment = PaymentHistory::where('order_id', $request->order_id)->first();
         if (!$payment) {
             return response()->json(['message' => 'Order not found'], 404);
         }
 
-        if($transactionStatus == 'capture'){
-            if ($fraudStatus == 'challenge') {
-                $payment->status = $fraudStatus;
-            } else if($fraudStatus == 'accept') {
-                $payment->status == 'paid';
-            }
+        // ❗ prevent double processing
+        if ($payment->status === 'paid') {
+            return response()->json(['message' => 'Already processed']);
         }
-        else if ($transactionStatus == 'settlement') {
-        $payment->status = 'paid';
-        } 
-        else if ($transactionStatus == 'pending') {
+
+        $transactionStatus = $request->transaction_status;
+        $fraudStatus = $request->fraud_status;
+
+        if ($transactionStatus == 'capture') {
+            if ($fraudStatus == 'challenge') {
+                $payment->status = 'challenge';
+            } else if ($fraudStatus == 'accept') {
+                $payment->status = 'paid';
+            }
+        } elseif ($transactionStatus == 'settlement') {
+            $payment->status = 'paid';
+        } elseif ($transactionStatus == 'pending') {
             $payment->status = 'pending';
-        } 
-        else if ($transactionStatus == 'deny') {
+        } elseif ($transactionStatus == 'deny') {
             $payment->status = 'failed';
-        } 
-        else if ($transactionStatus == 'expire') {
+        } elseif ($transactionStatus == 'expire') {
             $payment->status = 'expired';
-        } 
-        else if ($transactionStatus == 'cancel') {
+        } elseif ($transactionStatus == 'cancel') {
             $payment->status = 'cancelled';
         }
 
-        $payment->save();
-        
-        $tenant = Tenants::where('id', $user->tenant_id)->first();
-        $baseDate = $tenant->expired_at && $tenant->expired_at > now() ? $tenant->expired_at : now();
-        if ($payment->status === 'paid') {
-            $tenant->expired_at = $baseDate->addMonths($payment->month_amount);
+        $tenant = Tenants::find($payment->tenant_id);
+        if (!$tenant) {
+            return response()->json(['message' => 'Tenant not found'], 404);
         }
+
+        DB::transaction(function () use ($payment, $tenant) {
+            $payment->save();
+
+            if ($payment->status === 'paid') {
+                $baseDate = $tenant->expired_at && $tenant->expired_at > now()
+                    ? $tenant->expired_at
+                    : now();
+
+                $tenant->expired_at = $baseDate->copy()->addMonths($payment->month_amount);
+                $tenant->save();
+            }
+        });
 
         return response()->json(['message' => 'OK']);
     }
