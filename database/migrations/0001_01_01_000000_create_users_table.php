@@ -49,6 +49,86 @@ return new class extends Migration
 
         }); 
 
+
+        Schema::create('supplier', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->string('name');
+            $table->timestamps();
+        });
+
+        Schema::create('stock_parent', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->string('type');
+            $table->string('name');
+            $table->integer('quantity')->default(0);
+            $table->json('custom_field')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('inventory', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->foreignId('stock_parent_id')->constrained('stock_parent')->cascadeOnDelete();
+            $table->foreignId('supplier_id')->nullable()->constrained('supplier')->nullOnDelete();
+            $table->string('serial_number')->unique();
+            $table->integer('price');
+            $table->string('status');
+            $table->timestamps();
+        });
+
+        Schema::create('customer_type', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->string('type');
+            $table->string('platform')->nullable();
+            $table->timestamps();
+        });
+
+        Schema::create('customer', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->foreignId('customer_type_id')->constrained('customer_type')->cascadeOnDelete();
+            $table->string('name');
+            $table->timestamps();
+        });
+
+
+        Schema::create('orders', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->foreignId('customer_id')->constrained('customer')->cascadeOnDelete();
+            $table->integer('quantity');
+            $table->integer('payment_total');
+            $table->timestamps();
+        });
+
+        Schema::create('order_detail', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained('tenants')->cascadeOnDelete();
+            $table->foreignId('inventory_id')->constrained('inventory')->cascadeOnDelete();
+            $table->foreignId('id_orders')->constrained('orders')->cascadeOnDelete();
+            $table->integer('sale_price');
+            $table->integer('COGS');
+            $table->timestamps();
+        });
+
+        Schema::create('inventory_movements', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('inventory_id')->constrained('inventory')->cascadeOnDelete();
+
+            $table->string('movement_type');
+
+            $table->morphs('reference'); 
+
+            $table->string('notes')->nullable();
+            $table->timestamps();
+        });
+
+
         Schema::create('sessions', function (Blueprint $table) {
             $table->string('id')->primary();
             $table->foreignId('user_id')->nullable()->index();
@@ -67,5 +147,13 @@ return new class extends Migration
         Schema::dropIfExists('users');
         Schema::dropIfExists('password_reset_tokens');
         Schema::dropIfExists('sessions');
+        Schema::dropIfExists('inventory_movements');
+        Schema::dropIfExists('order_detail');
+        Schema::dropIfExists('orders');
+        Schema::dropIfExists('customer');
+        Schema::dropIfExists('customer_type');
+        Schema::dropIfExists('inventory');
+        Schema::dropIfExists('stock_parent');
+        Schema::dropIfExists('supplier');
     }
 };
