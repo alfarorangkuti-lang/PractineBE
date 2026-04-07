@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\AuthController;
+use App\Http\Controllers\SupplierController;
 use Illuminate\Auth\Events\Verified;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
@@ -63,6 +64,14 @@ Route::post('/firstSubs', [MidtransController::class, 'firstSubscription'])->mid
 Route::post('/subscribe', [MidtransController::class, 'subscribe'])->middleware(['auth:sanctum', 'subsAndRoleChecks:owner']);
 Route::post('/midtrans/callback', [MidtransController::class, 'callbackMidtrans']);
 Route::post('/testPayment', [MidtransController::class, 'testPayment'])->middleware(['auth:sanctum']);
+
+
 Route::get('/testMiddleware', function(){
     return response()->json(['message' => 'role benar dan sudah subscribe']);
 })->middleware(['auth:sanctum','subsAndRoleChecks:owner']);
+
+Route::middleware(['auth:sanctum', 'subsAndRoleChecks:admin,owner'])->group(function () {
+    Route::get('/supplier', [SupplierController::class, 'index']);
+    Route::post('/supplier', [SupplierController::class, 'store']);
+    Route::put('/supplier/{id}', [SupplierController::class, 'update']);
+});
