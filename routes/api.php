@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SupplierController;
+use App\Http\Controllers\CustomFieldController;
+use App\Http\Controllers\StockParentController;
 use Illuminate\Auth\Events\Verified;
 use App\Models\User;
 use Illuminate\Support\Facades\Route;
@@ -74,4 +76,11 @@ Route::middleware(['auth:sanctum', 'subsAndRoleChecks:admin,owner'])->group(func
     Route::get('/supplier', [SupplierController::class, 'index']);
     Route::post('/supplier', [SupplierController::class, 'store']);
     Route::put('/supplier/{id}', [SupplierController::class, 'update']);
+
+    Route::post('/custom-field', [CustomFieldController::class, 'store']);
+    Route::get('/custom-field', [CustomFieldController::class, 'index']);
+
+    Route::get('/stock-parent', [StockParentController::class, 'index']);
+    Route::post('/stock-parent', [StockParentController::class, 'store']);
+    Route::put('/stock-parent/{id}', [StockParentController::class, 'update']);
 });
