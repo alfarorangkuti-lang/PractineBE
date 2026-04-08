@@ -3,6 +3,7 @@
 use App\Http\Controllers\AuthController;
 use App\Http\Controllers\SupplierController;
 use App\Http\Controllers\CustomFieldController;
+use App\Http\Controllers\InventoryController;
 use App\Http\Controllers\StockParentController;
 use Illuminate\Auth\Events\Verified;
 use App\Models\User;
@@ -83,4 +84,9 @@ Route::middleware(['auth:sanctum', 'subsAndRoleChecks:admin,owner'])->group(func
     Route::get('/stock-parent', [StockParentController::class, 'index']);
     Route::post('/stock-parent', [StockParentController::class, 'store']);
     Route::put('/stock-parent/{id}', [StockParentController::class, 'update']);
+
+    Route::get('inventory-serial', [InventoryController::class, 'indexSerial']);
+    Route::post('inventory-serial', [InventoryController::class, 'storeSerial']);
+
+    Route::get('inventory-mass', [InventoryController::class, 'indexMass']);
 });

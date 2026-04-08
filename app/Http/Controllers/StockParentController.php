@@ -6,17 +6,18 @@ use Illuminate\Http\Request;
 use App\Models\StockParent;
 use App\Models\CustomField;
 use App\Models\CustomFieldStockParent;
+use App\Http\Resources\StockParentResource;
 
 class StockParentController extends Controller
 {
     /**
      * Display a listing of the resource.
      */
-    public function index()
-    {
-        $stock = StockParent::with('customFieldValues.field')->get();
-
-        return response()->json($stock);
+    public function index(Request $request)
+    {   
+        $user = $request->user();
+        $stock = StockParent::where('tenant_id', $user->tenant_id)->with('customFieldValues.field')->get();
+        return StockParentResource::collection($stock);
     }
 
     /**

@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Carbon;
 use App\Models\PaymentHistory;
 use App\Models\Tenants;
