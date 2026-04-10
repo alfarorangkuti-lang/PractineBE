@@ -79,14 +79,21 @@ Route::middleware(['auth:sanctum', 'subsAndRoleChecks:admin,owner'])->group(func
     Route::put('/supplier/{id}', [SupplierController::class, 'update']);
 
     Route::post('/custom-field', [CustomFieldController::class, 'store']);
+    Route::put('/custom-field', [CustomFieldController::class, 'update']);
     Route::get('/custom-field', [CustomFieldController::class, 'index']);
 
     Route::get('/stock-parent', [StockParentController::class, 'index']);
     Route::post('/stock-parent', [StockParentController::class, 'store']);
     Route::put('/stock-parent/{id}', [StockParentController::class, 'update']);
 
+    Route::get('/stock-parent-mass', [StockParentController::class, 'indexMass']);
+    Route::post('/stock-parent-mass', [StockParentController::class, 'storeMass']);
+
+
     Route::get('inventory-serial', [InventoryController::class, 'indexSerial']);
     Route::post('inventory-serial', [InventoryController::class, 'storeSerial']);
+    Route::put('inventory-serial/{id}', [InventoryController::class, 'updateSerial']);
 
     Route::get('inventory-mass', [InventoryController::class, 'indexMass']);
+    Route::post('inventory-mass', [InventoryController::class, 'storeMass']);
 });

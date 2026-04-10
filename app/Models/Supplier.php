@@ -8,7 +8,7 @@ class Supplier extends Model
 {
 
     public function inventory(){
-        return $this->hasMany('inventory', 'supplier_id');
+        return $this->hasMany(Inventory::class, 'supplier_id');
     }
 
     protected $table = 'supplier';

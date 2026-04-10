@@ -22,6 +22,7 @@ class StockParentResource extends JsonResource
             'quantity' => $this->quantity,
             'created_at' => $this->created_at,
             'updated_at' => $this->updated_at,
+            'inventory_count' => $this->inventory_count,
 
             'custom_fields' => $this->customFieldValues
                 ->mapWithKeys(function ($item) {

@@ -29,7 +29,9 @@ class InventoryController extends Controller
     {
         $user = $request->user();
         $data = Inventory::where('tenant_id', $user->tenant_id)->whereHas('stockParent', function ($q) {$q->where('type', 'mass');} )->with('stockParent')->get();
-        return response()->json(data:$data);
+        return InventoryResource::collection($data);
+        // return response()->json(data:$data);
+        
     }
 
     /**
@@ -63,27 +65,25 @@ class InventoryController extends Controller
             }
 
             if($stockParentId == null){
-                $stockParent = StockParent::firstOrCreate([
+                $stockParent = StockParent::Create([
                     'tenant_id' => $user->tenant_id,
                     'name' => $request->stock_parent_name,
                     'type' => 'serial',
                 ]);
 
-                $customField = CustomField::where('tenant_id', $user->tenant_id);
-                $customField= $customField->get();
                 $inputFields = collect($request->custom_field ?? [])->keyBy('custom_field_id');
 
                 
-                foreach($customField as $cf){
-                    $inputValue = $inputFields[$cf->id]['value'] ?? null;
+                foreach($inputFields as $inputField){
+                    $inputValue = $inputFields['value'] ?? null;
                     CustomFieldStockParent::updateOrCreate(
                         [
                             'stock_parent_id' => $stockParent->id,
-                            'custom_field_id' => $cf->id,
+                            'custom_field_id' => $inputField->id,
                         ],
                         [
                             'tenant_id' => $user->tenant_id,
-                            'value' => !empty($inputValue) ? $inputValue : '-'
+                            'value' => !empty($inputValue) ? $inputValue : null
                         ]
                     );
                 }
@@ -108,6 +108,71 @@ class InventoryController extends Controller
         }
     }
 
+    public function storeMass(Request $request)
+    {
+        try {
+            DB::beginTransaction();
+            $user = $request->user();
+            // validasi input
+            $request->validate([
+                'supplier_id' => 'nullable|exists:supplier,id',
+                'stock_parent_id' => 'nullable|exists:stock_parent,id',
+                'price' => 'numeric|required',
+                'quantity' => 'numeric|required',
+                'supplier' => 'string',
+                'stock_parent_name' => 'string',
+            ]);
+
+            // inisialisasi id
+            $supplierId = $request->supplier_id;              
+            $stockParentId = $request->stock_parent_id;
+
+            // first or create supp & stockparent
+            if ($supplierId == null) {
+                $supplier = Supplier::firstOrCreate([
+                    'tenant_id' => $user->tenant_id,
+                    'name' => $request->supplier
+                ]);
+                $supplierId = $supplier->id;
+            }
+
+            if($stockParentId == null){
+                $stockParent = StockParent::firstOrCreate([
+                    'tenant_id' => $user->tenant_id,
+                    'name' => $request->stock_parent_name,
+                    'type' => 'mass',
+                ]);
+
+                // update quantity
+
+                $stockParentId = $stockParent->id;
+                $stockParent->quantity += $request->quantity;
+                $stockParent->save();
+
+            }
+
+
+            // insert inventory
+            for ($i=0; $i < $request->quantity; $i++) { 
+                Inventory::create([
+                'tenant_id' => $user->tenant_id,
+                'supplier_id' => $supplierId,
+                'stock_parent_id' => $stockParentId,
+                'serial_number' => 'MASS-'. $supplierId . '-' . $stockParentId . '-' . now()->format('YmdHis'). '-' .$i,
+                'price' => $request->price,
+                'status' => 'available'
+            ]);
+            }
+            
+            
+            DB::commit();
+            return response()->json(['message' => 'berhasil']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'terjadi kesalahan :'. $e]);
+        }
+    }
+
     /**
      * Display the specified resource.
      */
@@ -119,9 +184,84 @@ class InventoryController extends Controller
     /**
      * Update the specified resource in storage.
      */
-    public function update(Request $request, string $id)
+    public function updateSerial(Request $request, string $id)
     {
-        //
+        try {
+            DB::beginTransaction();
+            $user = $request->user();
+            $request->validate([
+                'supplier_id' => 'nullable|exists:supplier,id',
+                'stock_parent_id' => 'nullable|exists:stock_parent,id',
+                'serial_number' => 'required|string|unique:inventory,serial_number',
+                'price' => 'numeric|required',
+
+                'supplier' => 'string',
+                'stock_parent_name' => 'string',
+                'custom_field' => 'array|nullable',
+            ]);
+            $data = Inventory::where('tenant_id',$user->tenant_id)->findOrFail($id);
+            
+            $supplierId = $request->supplier_id;              
+            $stockParentId = $request->stock_parent_id;
+
+            if ($supplierId == null) {
+                $supplier = Supplier::firstOrCreate([
+                    'tenant_id' => $user->tenant_id,
+                    'name' => $request->supplier
+                ]);
+                $supplierId = $supplier->id;
+            }
+
+            if($stockParentId == null){
+                $stockParent = StockParent::firstOrCreate([
+                    'tenant_id' => $user->tenant_id,
+                    'name' => $request->stock_parent_name,
+                    'type' => 'serial',
+                ]);
+
+                $inputFields = collect($request->custom_field ?? [])->keyBy('custom_field_id');
+
+                
+                foreach($inputFields as $inputField){
+                    $inputValue = $inputField['value'] ?? null;
+                    CustomFieldStockParent::updateOrCreate(
+                        [
+                            'stock_parent_id' => $stockParent->id,
+                            'custom_field_id' => $inputField['custom_field_id'],
+                        ],
+                        [
+                            'tenant_id' => $user->tenant_id,
+                            'value' => !empty($inputValue) ? $inputValue : null
+                        ]
+                    );
+                }
+
+                $stockParentId = $stockParent->id;
+            }
+            $inputIds = $inputFields->pluck('custom_field_id');
+
+            CustomFieldStockParent::where('stock_parent_id', $stockParent->id)
+                ->whereNotIn('custom_field_id', $inputIds)
+                ->delete();
+            
+            $inventory = [
+                'tenant_id' => $user->tenant_id,
+                'supplier_id' => $supplierId,
+                'stock_parent_id' => $stockParentId,
+                'serial_number' => $request->serial_number,
+                'price' => $request->price,
+                'status' => 'available'
+            ];
+
+            $data->update($inventory);
+
+            
+            DB::commit();
+            return response()->json(['message' => 'berhasil']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'terjadi kesalahan :'. $e]);
+        }
     }
 
     /**

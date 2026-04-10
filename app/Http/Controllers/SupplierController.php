@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
+use Carbon\Carbon;
 use App\Models\Supplier;
 
 class SupplierController extends Controller
@@ -11,10 +12,23 @@ class SupplierController extends Controller
      * Display a listing of the resource.
      */
     public function index(Request $request)
-    {
-        $user = $request->user();
-        $supplier = Supplier::where('tenant_id', $user->tenant_id)->get();
-        return response()->json($supplier);
+    {   
+        try {
+        
+            $user = $request->user();
+            $search = $request->search ?? '';
+            $orderBy = $request->order ?? 'name';
+            $sortBy = $request->by ?? 'asc';
+            $supplier = Supplier::where('tenant_id', $user->tenant_id)->where('name', 'LIKE' , "%{$search}%")
+            ->withCount('inventory')->orderBy($orderBy, $sortBy)->get();
+            if (empty($supplier)) {
+                return response()->json(['Kosong']);
+            }
+            return response()->json($supplier);
+
+        } catch (\Exception $e) {
+            return response()->json(['message' => 'terjadi kesalahan : '. $e]);
+        }
     }
 
     /**

@@ -16,7 +16,7 @@ class CustomFieldController extends Controller
         try {
             $user = $request->user();
             $customField = CustomField::where('tenant_id', $user->tenant_id)->get();
-            return response()->json([$customField]);
+            return response()->json($customField);
         } catch (\Exception $e) {
             return response()->json(['message' => 'terjadi kesalahan: '. $e]);
         }
@@ -41,7 +41,6 @@ class CustomFieldController extends Controller
                 'type' => $request->type,
             ]);
             DB::commit();
-
             return response()->json(['message' => 'berhasil!']);
         } catch (\Exception $e) {
             DB::rollback();
@@ -62,7 +61,23 @@ class CustomFieldController extends Controller
      */
     public function update(Request $request, string $id)
     {
-        //
+        try {
+            DB::beginTransaction();
+            $data = CustomField::findOrFail($id);
+            $request->validate([
+                'name' => 'required|string',
+                'type' => 'string|required'
+            ]);
+
+            $data->name = $request->name;
+            $data->type = $request->type;
+            $data->save();
+            DB::commit();
+            return response()->json(['message' => 'berhasil!']);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'terjadi kesalahan : '. $e]);
+        }
     }
 
     /**
