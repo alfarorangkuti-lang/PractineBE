@@ -75,8 +75,9 @@ Route::get('/testMiddleware', function(){
 
 Route::middleware(['auth:sanctum', 'subsAndRoleChecks:admin,owner'])->group(function () {
     Route::get('/supplier', [SupplierController::class, 'index']);
+    Route::get('/supplierEdit', [SupplierController::class, 'edit']);
     Route::post('/supplier', [SupplierController::class, 'store']);
-    Route::put('/supplier/{id}', [SupplierController::class, 'update']);
+    Route::put('/supplier', [SupplierController::class, 'update']);
 
     Route::post('/custom-field', [CustomFieldController::class, 'store']);
     Route::put('/custom-field', [CustomFieldController::class, 'update']);
